@@ -139,7 +139,6 @@ impl Nylas {
         Ok(url)
     }
 
-
     /// Exchange the authorization code for an access token using hosted authentication.
     ///
     /// The authorization code is valid for 15 minutes and can be used only once.
@@ -204,7 +203,10 @@ impl Nylas {
             .map_err(|e| format!("Request Error: {:?}", e))?;
 
         if response.status().is_success() {
-            let data: HashMap<String, String> = response.json().await.map_err(|e| format!("JSON Parsing Error: {:?}", e))?;
+            let data: HashMap<String, String> = response
+                .json()
+                .await
+                .map_err(|e| format!("JSON Parsing Error: {:?}", e))?;
             if let Some(access_token) = data.get("access_token") {
                 return Ok(access_token.to_string());
             } else {
