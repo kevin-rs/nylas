@@ -138,4 +138,80 @@ impl Nylas {
 
         Ok(url)
     }
+
+
+    /// Exchange the authorization code for an access token using hosted authentication.
+    ///
+    /// The authorization code is valid for 15 minutes and can be used only once.
+    ///
+    /// # Arguments
+    ///
+    /// * `authorization_code` - The authorization code obtained during the authentication process.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the access token if successful, or an error message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any of the following conditions are not met:
+    /// 1. The client ID and client secret are not provided.
+    /// 2. The `authorization_code` is not valid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use nylas::auth::Nylas;
+    ///
+
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
+    ///
+    ///     let nylas = Nylas::new(client_id, client_secret);
+    ///
+    ///     let authorization_code = "YOUR_AUTHORIZATION_CODE";
+    ///
+    ///     match nylas.exchange_access_token(authorization_code).await {
+    ///         Ok(access_token) => println!("Access Token: {}", access_token),
+    ///         Err(error) => eprintln!("Error: {}", error),
+    ///     }
+    /// }
+    /// ```
+    pub async fn exchange_access_token(&self, authorization_code: &str) -> Result<String, String> {
+        if self.client_id.is_empty() || self.client_secret.is_empty() {
+            return Err("Client ID and Client Secret must not be empty.".to_string());
+        }
+
+        let mut params: HashMap<&str, String> = HashMap::new();
+        params.insert("client_id", self.client_id.clone());
+        params.insert("client_secret", self.client_secret.clone());
+        params.insert("grant_type", "authorization_code".to_string());
+        params.insert("code", authorization_code.to_string());
+
+        // Build the URL
+        let base_url = "https://api.nylas.com/oauth/token";
+
+        // Make the POST request
+        let client = reqwest::Client::new();
+        let response = client
+            .post(base_url)
+            .header("Accept", "application/json")
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| format!("Request Error: {:?}", e))?;
+
+        if response.status().is_success() {
+            let data: HashMap<String, String> = response.json().await.map_err(|e| format!("JSON Parsing Error: {:?}", e))?;
+            if let Some(access_token) = data.get("access_token") {
+                return Ok(access_token.to_string());
+            } else {
+                return Err("Access token not found in the response.".to_string());
+            }
+        } else {
+            return Err(format!("HTTP Error: {}", response.status()));
+        }
+    }
 }
