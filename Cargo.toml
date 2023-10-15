@@ -1,6 +1,6 @@
 [package]
 name = "nylas"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 description = "The non-official Rust SDK for the Nylas API."
 license = "MIT"
