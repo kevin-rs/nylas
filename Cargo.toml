@@ -1,0 +1,39 @@
+[package]
+name = "nylas"
+version = "0.0.1"
+edition = "2021"
+description = "The non-official Rust SDK for the Nylas API."
+license = "MIT"
+repository = "https://github.com/wiseaidev/nylas"
+homepage = "https://github.com/wiseaidev/nylas"
+authors = ["Mahmoud Harmouch <oss@wiseai.dev>"]
+documentation = "https://docs.rs/nylas"
+readme = "README.md"
+keywords = ["nylas", "nylas-sdk", "API", "Rust"]
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+url = "2.4.1"
+
+[dev-dependencies]
+# TODO
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[workspace]
+members = ["."]
+
+[features]
+# TODO
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = "thin"
+strip = "symbols"
