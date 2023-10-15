@@ -1,6 +1,6 @@
 [package]
 name = "nylas"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 description = "The non-official Rust SDK for the Nylas API."
 license = "MIT"
@@ -15,6 +15,8 @@ keywords = ["nylas", "nylas-sdk", "API", "Rust"]
 path = "src/lib.rs"
 
 [dependencies]
+reqwest = { version = "0.11.22", features = ["json"] }
+tokio = { version = "1.33.0", features = ["full"] }
 url = "2.4.1"
 
 [dev-dependencies]
