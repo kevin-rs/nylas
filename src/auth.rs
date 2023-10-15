@@ -162,7 +162,6 @@ impl Nylas {
     /// ```
     /// use nylas::auth::Nylas;
     ///
-
     /// #[tokio::main]
     /// async fn main() {
     ///     let client_id = "YOUR_CLIENT_ID";
