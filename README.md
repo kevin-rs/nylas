@@ -43,6 +43,8 @@ use nylas::auth::Nylas;
 async fn main() {
     let client_id = "YOUR_CLIENT_ID";
     let client_secret = "YOUR_CLIENT_SECRET";
+    
+    // Initialize a Nylas client with client ID and client secret, without an access token
     let mut nylas = Nylas::new(client_id, client_secret, None).await.unwrap();
 
     let redirect_uri = "http://localhost:3000";
@@ -50,32 +52,45 @@ async fn main() {
     let state = Some("unique_identifier");
     let scopes = Some("email,calendar,contacts");
 
+    // Generate an authentication URL for user login
     match nylas.authentication_url(redirect_uri, login_hint, state, scopes) {
         Ok(auth_url) => println!("Authentication URL: {}", auth_url),
         Err(error) => eprintln!("Error: {}", error),
     }
 
+    // In a real-world app, the client will receive an authorization code from the user after login
+    let authorization_code = "YOUR_AUTHORIZATION_CODE";
+    
+    // Exchange the authorization code for an access token
+    match nylas.exchange_access_token(authorization_code).await {
+        Ok(access_token) => println!("Access Token: {}", access_token),
+        Err(error) => eprintln!("Error: {}", error),
+    }
+
+    // Reinitialize the Nylas client with the obtained access token
     let access_token = "YOUR_ACCESS_TOKEN";
-    nylas = Nylas::new(client_id, client_secret, Some(access_token))
-        .await
-        .unwrap();
+    nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+
+    // Retrieve and print the account information associated with the access token
     println!("Account Info: {:?}", nylas.account);
+
     // Call the all method to retrieve all messages
     let messages = nylas.messages().all().await;
     match messages {
         Ok(messages) => {
             for message in messages {
-                // Process each message
+                // Process each message (Replace or supplement this part with your own logic)
                 println!("{:?}", nylas.messages);
             }
         }
         Err(err) => {
-            // Handle the error
+            // Handle and print any errors while fetching messages
             eprintln!("Error: {}", err);
         }
     }
-    // access fields of a message
-    println!("Last message ID: {:?}", nylas.messages.unwrap().pop().unwrap().id)
+    
+    // Access fields of a message, here printing the ID of the last message
+    println!("Last message ID: {:?}", nylas.messages.unwrap().pop().unwrap().id);
 }
 ```
 
