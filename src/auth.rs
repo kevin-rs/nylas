@@ -1,5 +1,20 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
+
+/// Struct representing an Nylas account.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Account {
+    id: String,
+    object: String,
+    account_id: String,
+    name: String,
+    provider: String,
+    organization_unit: String,
+    sync_state: String,
+    linked_at: i32,
+    email_address: String,
+}
 
 /// The `Nylas` struct provides all methods available in the Nylas API.
 ///
@@ -15,11 +30,13 @@ use url::Url;
 /// let client_id = "YOUR_CLIENT_ID";
 /// let client_secret = "YOUR_CLIENT_SECRET";
 ///
-/// let nylas = Nylas::new(client_id, client_secret);
+/// let nylas = Nylas::new(client_id, client_secret, None);
 /// ```
 pub struct Nylas {
     pub client_id: String,
     pub client_secret: String,
+    pub account: Option<Account>,
+    pub access_token: Option<String>,
 }
 
 impl Nylas {
@@ -29,6 +46,7 @@ impl Nylas {
     ///
     /// * `client_id` - A string representing your Nylas API client ID.
     /// * `client_secret` - A string representing your Nylas API client secret.
+    /// * `access_token` - An optional string representing the access token.
     ///
     /// # Examples
     ///
@@ -38,13 +56,32 @@ impl Nylas {
     /// let client_id = "YOUR_CLIENT_ID";
     /// let client_secret = "YOUR_CLIENT_SECRET";
     ///
-    /// let nylas = Nylas::new(client_id, client_secret);
+    /// // Create a Nylas instance without an access token
+    /// let nylas = Nylas::new(client_id, client_secret, None);
+    ///
+    /// // Create a Nylas instance with an access token
+    /// let access_token = "YOUR_ACCESS_TOKEN";
+    /// let nylas_with_token = Nylas::new(client_id, client_secret, Some(access_token));
     /// ```
-    pub fn new(client_id: &str, client_secret: &str) -> Self {
-        Nylas {
+    pub async fn new(
+        client_id: &str,
+        client_secret: &str,
+        access_token: Option<&str>,
+    ) -> Result<Self, String> {
+        let mut nylas = Nylas {
             client_id: client_id.to_string(),
             client_secret: client_secret.to_string(),
+            access_token: access_token.map(|s| s.to_string()),
+            account: None,
+        };
+
+        if let Some(_) = nylas.access_token {
+            if let Err(error) = nylas.account().await {
+                return Err(format!("Error initializing Nylas: {}", error));
+            }
         }
+
+        Ok(nylas)
     }
 
     /// Generate an authentication URL for initiating the OAuth 2.0 flow.
@@ -77,7 +114,7 @@ impl Nylas {
     /// let client_id = "YOUR_CLIENT_ID";
     /// let client_secret = "YOUR_CLIENT_SECRET";
     ///
-    /// let nylas = Nylas::new(client_id, client_secret);
+    /// let nylas = Nylas::new(client_id, client_secret, None);
     ///
     /// let redirect_uri = "http://example.com/login_callback";
     /// let login_hint = Some("your_email@example.com");
@@ -167,7 +204,7 @@ impl Nylas {
     ///     let client_id = "YOUR_CLIENT_ID";
     ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///
-    ///     let nylas = Nylas::new(client_id, client_secret);
+    ///     let nylas = Nylas::new(client_id, client_secret, None);
     ///
     ///     let authorization_code = "YOUR_AUTHORIZATION_CODE";
     ///
@@ -213,6 +250,71 @@ impl Nylas {
             }
         } else {
             return Err(format!("HTTP Error: {}", response.status()));
+        }
+    }
+
+    /// Get account details for the authenticated user and store them in the `account` member.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the account details if successful, or an error message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any of the following conditions are not met:
+    /// 1. The client ID and client secret are not provided.
+    /// 2. The access token is not valid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use nylas::auth::Nylas;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
+    ///     let access_token = "YOUR_ACCESS_TOKEN";
+    ///
+    ///     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///
+    ///     match nylas.account().await {
+    ///         Ok(account) => {
+    ///             println!("Account Details: {:?}", account);
+    ///         },
+    ///         Err(error) => eprintln!("Error: {}", error),
+    ///     }
+    /// }
+    /// ```
+    pub async fn account(&mut self) -> Result<(), String> {
+        if self.client_id.is_empty() || self.client_secret.is_empty() {
+            return Err("Client ID and Client Secret must not be empty.".to_string());
+        }
+
+        if let Some(access_token) = &self.access_token {
+            // Build the URL
+            let base_url = "https://api.nylas.com/account";
+            let client = reqwest::Client::new();
+            let response = client
+                .get(base_url)
+                .header("Authorization", format!("Bearer {}", access_token))
+                .header("Accept", "application/json")
+                .send()
+                .await
+                .map_err(|e| format!("Request Error: {:?}", e))?;
+
+            if response.status().is_success() {
+                let account: Account = response
+                    .json()
+                    .await
+                    .map_err(|e| format!("JSON Parsing Error: {:?}", e))?;
+                self.account = Some(account);
+                Ok(())
+            } else {
+                Err(format!("HTTP Error: {}", response.status()))
+            }
+        } else {
+            Err("Access token must be set before calling the account method.".to_string())
         }
     }
 }
