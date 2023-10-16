@@ -1,20 +1,7 @@
-use serde::{Deserialize, Serialize};
+use crate::accounts::Account;
+use crate::messages::{Message, Messages};
 use std::collections::HashMap;
 use url::Url;
-
-/// Struct representing an Nylas account.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Account {
-    id: String,
-    object: String,
-    account_id: String,
-    name: String,
-    provider: String,
-    organization_unit: String,
-    sync_state: String,
-    linked_at: i32,
-    email_address: String,
-}
 
 /// The `Nylas` struct provides all methods available in the Nylas API.
 ///
@@ -37,6 +24,7 @@ pub struct Nylas {
     pub client_secret: String,
     pub account: Option<Account>,
     pub access_token: Option<String>,
+    pub messages: Option<Vec<Message>>,
 }
 
 impl Nylas {
@@ -73,6 +61,7 @@ impl Nylas {
             client_secret: client_secret.to_string(),
             access_token: access_token.map(|s| s.to_string()),
             account: None,
+            messages: None,
         };
 
         if let Some(_) = nylas.access_token {
@@ -111,19 +100,22 @@ impl Nylas {
     /// ```
     /// use nylas::auth::Nylas;
     ///
-    /// let client_id = "YOUR_CLIENT_ID";
-    /// let client_secret = "YOUR_CLIENT_SECRET";
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///
-    /// let nylas = Nylas::new(client_id, client_secret, None);
+    ///     let nylas = Nylas::new(client_id, client_secret, None).await.unwrap();
     ///
-    /// let redirect_uri = "http://example.com/login_callback";
-    /// let login_hint = Some("your_email@example.com");
-    /// let state = Some("unique_identifier");
-    /// let scopes = Some("email,calendar,contacts");
+    ///     let redirect_uri = "http://example.com/login_callback";
+    ///     let login_hint = Some("your_email@example.com");
+    ///     let state = Some("unique_identifier");
+    ///     let scopes = Some("email,calendar,contacts");
     ///
-    /// match nylas.authentication_url(redirect_uri, login_hint, state, scopes) {
-    ///     Ok(auth_url) => println!("Authentication URL: {}", auth_url),
-    ///     Err(error) => eprintln!("Error: {}", error),
+    ///     match nylas.authentication_url(redirect_uri, login_hint, state, scopes) {
+    ///         Ok(auth_url) => println!("Authentication URL: {}", auth_url),
+    ///         Err(error) => eprintln!("Error: {}", error),
+    ///     }
     /// }
     /// ```
     pub fn authentication_url(
@@ -204,7 +196,7 @@ impl Nylas {
     ///     let client_id = "YOUR_CLIENT_ID";
     ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///
-    ///     let nylas = Nylas::new(client_id, client_secret, None);
+    ///     let nylas = Nylas::new(client_id, client_secret, None).await.unwrap();
     ///
     ///     let authorization_code = "YOUR_AUTHORIZATION_CODE";
     ///
@@ -276,14 +268,9 @@ impl Nylas {
     ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///     let access_token = "YOUR_ACCESS_TOKEN";
     ///
-    ///     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///     // let nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
     ///
-    ///     match nylas.account().await {
-    ///         Ok(account) => {
-    ///             println!("Account Details: {:?}", account);
-    ///         },
-    ///         Err(error) => eprintln!("Error: {}", error),
-    ///     }
+    ///     // println!("Account Details: {:?}", nylas.account);
     /// }
     /// ```
     pub async fn account(&mut self) -> Result<(), String> {
@@ -316,5 +303,28 @@ impl Nylas {
         } else {
             Err("Access token must be set before calling the account method.".to_string())
         }
+    }
+
+    /// Returns a `Messages` struct associated with this `Nylas` instance, which provides methods
+    /// for working with Nylas messages.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use nylas::auth::Nylas;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
+    ///     let access_token = "YOUR_ACCESS_TOKEN";
+    ///
+    ///     // let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///
+    ///     // let messages = nylas.messages();
+    /// }
+    /// ```
+    pub fn messages(&mut self) -> Messages {
+        Messages { nylas: self }
     }
 }
