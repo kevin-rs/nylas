@@ -27,6 +27,7 @@ To include the Nylas Rust SDK in your project, add it as a dependency in your `C
 ```toml
 [dependencies]
 nylas = "0.0.4"
+tokio = "1.33.0"
 ```
 
 You can find the latest version on [Crates.io](https://crates.io/crates/nylas).
