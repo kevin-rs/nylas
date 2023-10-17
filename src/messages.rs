@@ -1,8 +1,9 @@
-use crate::auth::Nylas;
+use crate::client::Nylas;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+
 /// Represents an email address with an optional name.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmailAddress {
@@ -89,18 +90,133 @@ pub struct Message {
     pub labels: Vec<Label>,
 }
 
-/// Represents an Nylas account.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Account {
-    pub id: String,
-    pub object: String,
-    pub account_id: String,
-    pub name: String,
-    pub provider: String,
-    pub organization_unit: String,
-    pub sync_state: String,
-    pub linked_at: i32,
-    pub email_address: String,
+impl Message {
+    /// Checks if a message matches a given filter based on its attributes.
+    ///
+    /// # Arguments
+    ///
+    /// - `self`: A reference to the `Message` struct.
+    /// - `filter`: A hashmap containing filtering criteria as key-value pairs.
+    ///
+    /// # Returns
+    ///
+    /// A boolean indicating whether the message matches the filter.
+    ///
+    /// # Filtering Criteria
+    ///
+    /// The filter hashmap can include the following criteria:
+    ///
+    /// - `"to"`: Check if the message is sent to a specific email address.
+    /// - `"from"`: Check if the message is sent from a specific email address.
+    /// - `"cc"`: Check if the message includes a specific email address in the CC field.
+    /// - `"bcc"`: Check if the message includes a specific email address in the BCC field.
+    /// - `"date"`: Check if the message's date matches a specific Unix timestamp.
+    /// - `"unread"`: Check if the message is marked as unread (true or false).
+    /// - `"starred"`: Check if the message is marked as starred (true or false).
+    /// - `"snippet"`: Check if the message's snippet contains a specific keyword.
+    /// - `"subject"`: Check if the message's subject contains a specific keyword.
+    /// - `"body"`: Check if the message's body contains a specific keyword.
+    /// - `"thread_id"`: Check if the message belongs to a specific thread (by ID).
+    /// - `"labels"`: Check if the message is labeled with specific labels (comma-separated).
+    fn matches_filter(&self, filter: &HashMap<&str, &str>) -> bool {
+        if let Some(to) = filter.get("to") {
+            if !self
+                .to
+                .iter()
+                .any(|recipient| recipient.email == to.to_string())
+            {
+                return false;
+            }
+        }
+
+        if let Some(from) = filter.get("from") {
+            if !self
+                .from
+                .iter()
+                .any(|sender| sender.email == from.to_string())
+            {
+                return false;
+            }
+        }
+
+        if let Some(cc) = filter.get("cc") {
+            if !self
+                .cc
+                .iter()
+                .any(|recipient| recipient.email == cc.to_string())
+            {
+                return false;
+            }
+        }
+
+        if let Some(bcc) = filter.get("bcc") {
+            if !self
+                .bcc
+                .iter()
+                .any(|recipient| recipient.email == bcc.to_string())
+            {
+                return false;
+            }
+        }
+
+        if let Some(date_str) = filter.get("date") {
+            let filter_date = date_str.parse::<i64>().unwrap_or(0);
+            if self.date != filter_date {
+                return false;
+            }
+        }
+
+        if let Some(unread_str) = filter.get("unread") {
+            let filter_unread = unread_str.parse::<bool>().unwrap_or(false);
+            if self.unread != filter_unread {
+                return false;
+            }
+        }
+
+        if let Some(starred_str) = filter.get("starred") {
+            let filter_starred = starred_str.parse::<bool>().unwrap_or(false);
+            if self.starred != filter_starred {
+                return false;
+            }
+        }
+
+        if let Some(snippet) = filter.get("snippet") {
+            if !self.snippet.contains(snippet) {
+                return false;
+            }
+        }
+
+        if let Some(subject) = filter.get("subject") {
+            if !self.subject.contains(subject) {
+                return false;
+            }
+        }
+
+        if let Some(body) = filter.get("body") {
+            if !self.body.contains(body) {
+                return false;
+            }
+        }
+
+        if let Some(thread_id) = filter.get("thread_id") {
+            if self.thread_id != thread_id.to_string() {
+                return false;
+            }
+        }
+
+        if let Some(labels) = filter.get("labels") {
+            let filter_labels: Vec<&str> = labels.split(',').collect();
+            if !filter_labels
+                .iter()
+                .any(|label| self.labels.iter().any(|l| l.name == label.to_string()))
+            {
+                return false;
+            }
+        }
+
+        // TODO: Add more filtering logic for other attributes
+        true
+    }
 }
 
 /// Struct for working with Nylas messages.
@@ -109,17 +225,27 @@ pub struct Messages<'a> {
 }
 
 impl<'a> Messages<'a> {
+    pub fn new(nylas: &'a mut Nylas) -> Self {
+        Messages { nylas }
+    }
     /// Retrieve all messages from the Nylas API.
+    ///
+    /// # Arguments
+    ///
+    /// - `self`: A mutable reference to the `Messages` struct.
     ///
     /// # Returns
     ///
     /// A `Result` containing a vector of messages if successful, or an error message.
     ///
+    /// # Errors
+    ///
+    /// This method can return an error if the access token is not provided or if the request to the Nylas API fails.
+    ///
     /// # Examples
     ///
-    /// ```
-    /// use nylas::auth::Nylas;
-    ///
+    /// ```rust
+    /// use nylas::client::Nylas;
     /// #[tokio::main]
     /// async fn main() {
     ///     let client_id = "YOUR_CLIENT_ID";
@@ -142,7 +268,7 @@ impl<'a> Messages<'a> {
     ///     //         eprintln!("Error: {}", err);
     ///     //     }
     ///     // }
-    /// }
+    /// # }
     /// ```
     pub async fn all(&mut self) -> Result<Vec<Message>, String> {
         // Construct the API URL
@@ -172,7 +298,7 @@ impl<'a> Messages<'a> {
                     // Parse the JSON response into a vector of Message
                     let messages: Vec<Message> = response.json().await.unwrap();
                     // Set the messages attribute
-                    self.nylas.messages = Some(messages.clone());
+                    // self.nylas.messages = Some(messages.clone());
                     Ok(messages)
                 } else {
                     Err(format!("Request failed with status: {}", response.status()))
@@ -180,5 +306,170 @@ impl<'a> Messages<'a> {
             }
             Err(err) => Err(err.to_string()),
         }
+    }
+
+    /// This method allows you to search for messages based on a query string, with
+    /// optional limits and offsets to paginate the results.
+    ///
+    /// # Arguments
+    ///
+    /// - `self`: A mutable reference to the `Messages` struct.
+    /// - `query`: A search query string.
+    /// - `limit`: An optional limit to specify the number of results to retrieve.
+    /// - `offset`: An optional offset to specify the starting point of results.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of messages if successful, or an error message.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use nylas::client::Nylas;
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
+    ///     let access_token = "YOUR_ACCESS_TOKEN";
+    ///
+    ///     // let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///
+    ///     // Call the `search` method to search for messages with a limit and offset
+    ///     // let result = nylas.messages().search("yo.code.inbox@gmail.com", Some(1), Some(0)).await;
+    ///     // match result {
+    ///     //     Ok(messages) => {
+    ///     //         for message in messages {
+    ///     //             // Process each searched message
+    ///     //             println!("{:?}", message);
+    ///     //         }
+    ///     //     }
+    ///     //     Err(err) => {
+    ///     //         // Handle the error
+    ///     //         eprintln!("Error: {}", err);
+    ///     //     }
+    ///     // }
+    /// }
+    /// ```
+    pub async fn search(
+        &mut self,
+        query: &str,
+        limit: Option<i32>,
+        offset: Option<i32>,
+    ) -> Result<Vec<Message>, String> {
+        // Construct the API URL with the search query, limit, and offset
+        let mut url = format!("https://api.nylas.com/messages/search?q={}", query);
+
+        if let Some(limit) = limit {
+            url.push_str(&format!("&limit={}", limit));
+        }
+
+        if let Some(offset) = offset {
+            url.push_str(&format!("&offset={}", offset));
+        }
+
+        // Create an HTTP client with the bearer token in the headers
+        let client = reqwest::Client::new();
+        let request = client
+            .get(&url)
+            .header("Accept", "application/json")
+            .header(
+                "Authorization",
+                format!(
+                    "Bearer {}",
+                    self.nylas
+                        .access_token
+                        .as_ref()
+                        .ok_or("Access token not provided")?,
+                ),
+            )
+            .send();
+
+        // Handle the HTTP response
+        match request.await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    // Parse the JSON response into a vector of Message
+                    let messages: Vec<Message> = response.json().await.unwrap();
+                    Ok(messages)
+                } else {
+                    Err(format!("Request failed with status: {}", response.status()))
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    /// Filters messages based on specified criteria.
+    ///
+    /// # Arguments
+    ///
+    /// - `self`: A mutable reference to the `Messages` struct.
+    /// - `filter`: A hashmap containing filtering criteria as key-value pairs.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of messages that match the filter if successful, or an error message.
+    ///
+    /// # Errors
+    ///
+    /// This method can return an error if the access token is not provided, if the request to the Nylas API fails when calling the `all` method, or if there's an issue filtering the messages.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use nylas::client::Nylas;
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
+    ///     let access_token = "YOUR_ACCESS_TOKEN";
+    ///
+    ///     // let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///
+    ///     // Define filter parameters as a HashMap
+    ///     // let mut filter = HashMap::new();
+    ///     // filter.insert("to", "oss@wiseai.dev");
+    ///     // let result = nylas.messages().where_(filter).await;
+    ///     // match result {
+    ///     //     Ok(messages) => {
+    ///     //         // Process the filtered messages
+    ///     //         for message in messages {
+    ///     //             println!("Filtered Message: {:?}", message);
+    ///     //         }
+    ///     //     }
+    ///     //     Err(err) => {
+    ///     //         eprintln!("Error: {}", err);
+    ///     //     }
+    ///     // }
+    /// }
+    /// ```
+    ///
+    /// # Filtering Criteria
+    ///
+    /// The filter hashmap can include various criteria for filtering messages. The available filtering criteria include:
+    ///
+    /// - `"to"`: Filter messages that are sent to a specific email address.
+    /// - `"from"`: Filter messages that are sent from a specific email address.
+    /// - `"cc"`: Filter messages that include a specific email address in the CC field.
+    /// - `"bcc"`: Filter messages that include a specific email address in the BCC field.
+    /// - `"date"`: Filter messages with a specific Unix timestamp.
+    /// - `"unread"`: Filter messages marked as unread (true or false).
+    /// - `"starred"`: Filter messages marked as starred (true or false).
+    /// - `"snippet"`: Filter messages with a snippet containing a specific keyword.
+    /// - `"subject"`: Filter messages with a subject containing a specific keyword.
+    /// - `"body"`: Filter messages with a body containing a specific keyword.
+    /// - `"thread_id"`: Filter messages belonging to a specific thread (by ID).
+    /// - `"labels"`: Filter messages with specific labels (comma-separated).
+    pub async fn where_(&mut self, filter: HashMap<&str, &str>) -> Result<Vec<Message>, String> {
+        // Call the `all` method to retrieve all messages
+        let messages = self.all().await?;
+
+        // Filter messages based on the provided parameters
+        let filtered_messages: Vec<Message> = messages
+            .into_iter()
+            .filter(|message| message.matches_filter(&filter))
+            .collect();
+
+        Ok(filtered_messages)
     }
 }

@@ -18,13 +18,13 @@
 //! 2. Import the library into your Rust code:
 //!
 //! ```rust
-//! use nylas::auth::Nylas;
+//! use nylas::client::Nylas;
 //! ```
 //!
 //! 3. Initialize the Nylas client by providing your Nylas client ID and client secret:
 //!
 //! ```rust
-//! use nylas::auth::Nylas;
+//! use nylas::client::Nylas;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -53,5 +53,5 @@
 //! Your contributions help make this library better for everyone.
 
 pub mod accounts;
-pub mod auth;
+pub mod client;
 pub mod messages;

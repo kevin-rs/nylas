@@ -1,5 +1,5 @@
 use crate::accounts::Account;
-use crate::messages::{Message, Messages};
+use crate::messages::Messages;
 use std::collections::HashMap;
 use url::Url;
 
@@ -12,7 +12,7 @@ use url::Url;
 /// To create a new `Nylas` instance with your client ID and client secret:
 ///
 /// ```
-/// use nylas::auth::Nylas;
+/// use nylas::client::Nylas;
 ///
 /// let client_id = "YOUR_CLIENT_ID";
 /// let client_secret = "YOUR_CLIENT_SECRET";
@@ -24,7 +24,7 @@ pub struct Nylas {
     pub client_secret: String,
     pub account: Option<Account>,
     pub access_token: Option<String>,
-    pub messages: Option<Vec<Message>>,
+    pub messages: Option<Messages<'static>>,
 }
 
 impl Nylas {
@@ -39,7 +39,7 @@ impl Nylas {
     /// # Examples
     ///
     /// ```
-    /// use nylas::auth::Nylas;
+    /// use nylas::client::Nylas;
     ///
     /// let client_id = "YOUR_CLIENT_ID";
     /// let client_secret = "YOUR_CLIENT_SECRET";
@@ -98,7 +98,7 @@ impl Nylas {
     /// # Examples
     ///
     /// ```
-    /// use nylas::auth::Nylas;
+    /// use nylas::client::Nylas;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -189,7 +189,7 @@ impl Nylas {
     /// # Examples
     ///
     /// ```
-    /// use nylas::auth::Nylas;
+    /// use nylas::client::Nylas;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -260,7 +260,7 @@ impl Nylas {
     /// # Examples
     ///
     /// ```
-    /// use nylas::auth::Nylas;
+    /// use nylas::client::Nylas;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -311,7 +311,7 @@ impl Nylas {
     /// # Examples
     ///
     /// ```
-    /// use nylas::auth::Nylas;
+    /// use nylas::client::Nylas;
     ///
     /// #[tokio::main]
     /// async fn main() {
