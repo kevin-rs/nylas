@@ -34,63 +34,158 @@ You can find the latest version on [Crates.io](https://crates.io/crates/nylas).
 
 ## Usage
 
-Here's a simple example of how to retrieve all messages using the Nylas Rust Client:
+🔐 **Authentication**: Start by setting up authentication and obtaining an access token.
 
 ```rust
-use nylas::auth::Nylas;
+use nylas::client::Nylas;
 
 #[tokio::main]
 async fn main() {
     let client_id = "YOUR_CLIENT_ID";
     let client_secret = "YOUR_CLIENT_SECRET";
-    
-    // Initialize a Nylas client with client ID and client secret, without an access token
+
+    // Initialize the Nylas client with client ID and secret
     let mut nylas = Nylas::new(client_id, client_secret, None).await.unwrap();
 
+    // Define authentication parameters
     let redirect_uri = "http://localhost:3000";
-    let login_hint = Some("YOUR_EMAIL_ADDRESS");
+    let login_hint = Some("user@example.com");
     let state = Some("unique_identifier");
     let scopes = Some("email,calendar,contacts");
 
-    // Generate an authentication URL for user login
+    // Generate an authentication URL
     match nylas.authentication_url(redirect_uri, login_hint, state, scopes) {
         Ok(auth_url) => println!("Authentication URL: {}", auth_url),
         Err(error) => eprintln!("Error: {}", error),
     }
 
-    // In a real-world app, the client will receive an authorization code from the user after login
-    let authorization_code = "YOUR_AUTHORIZATION_CODE";
-    
-    // Exchange the authorization code for an access token
-    match nylas.exchange_access_token(authorization_code).await {
-        Ok(access_token) => println!("Access Token: {}", access_token),
-        Err(error) => eprintln!("Error: {}", error),
-    }
-
-    // Reinitialize the Nylas client with the obtained access token
+    // Set the access token exchanged
     let access_token = "YOUR_ACCESS_TOKEN";
-    nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    nylas = Nylas::new(client_id, client_secret, Some(access_token))
+        .await
+        .unwrap();
+}
+```
 
-    // Retrieve and print the account information associated with the access token
-    println!("Account Info: {:?}", nylas.account);
+📧 **Retrieve All Messages**: Fetch all messages from the Nylas API.
 
-    // Call the all method to retrieve all messages
-    let messages = nylas.messages().all().await;
-    match messages {
-        Ok(messages) => {
-            for message in messages {
-                // Process each message (Replace or supplement this part with your own logic)
-                println!("{:?}", nylas.messages);
-            }
-        }
-        Err(err) => {
-            // Handle and print any errors while fetching messages
-            eprintln!("Error: {}", err);
+```rust
+// ...
+
+// Call the all method to retrieve all messages
+let messages = nylas.messages().all().await;
+
+match messages {
+    Ok(messages) => {
+        for message in messages {
+            // Process each message
+            println!("Message To: {:?}", message.to);
         }
     }
-    
-    // Access fields of a message, here printing the ID of the last message
-    println!("Last message ID: {:?}", nylas.messages.unwrap().pop().unwrap().id);
+    Err(err) => {
+        // Handle the error
+        eprintln!("Error: {}", err);
+    }
+}
+```
+
+🔍 **Search for Messages**: Search for messages based on a query.
+
+```rust
+// ...
+
+// Call the `search` method to search for messages
+let query = "user@example.com";
+let limit = Some(1);
+let offset = Some(0);
+let result = nylas.messages().search(query, limit, offset).await;
+
+match result {
+    Ok(messages) => {
+        for message in messages {
+            // Process each searched message
+            println!("Searched Message: {:?}", message);
+        }
+    }
+    Err(err) => {
+        // Handle the error
+        eprintln!("Error: {}", err);
+    }
+}
+```
+
+🔍 **Filter Messages**: Filter messages based on specified criteria with an optional view parameter.
+
+```rust
+// ...
+
+// Define filter parameters as a HashMap
+let mut filter = HashMap::new();
+filter.insert("to", "user@example.com");
+
+// Call the `where_` method with filter and view parameters
+let messages = nylas.messages().where_(Some(filter), Some(View::Expanded)).await;
+
+match messages {
+    Ok(messages) => {
+        for message in messages {
+            // Process each message
+            println!("Message ID: {}", message.id);
+            // Access other fields as necessary
+        }
+    }
+    Err(err) => {
+        // Handle the error
+        eprintln!("Error: {}", err);
+    }
+}
+```
+
+📨 **Retrieve the First Message**: Get the most recent message from the Nylas API.
+
+```rust
+// ...
+
+let message_result = nylas.messages().first().await;
+
+match message_result {
+    Ok(Some(message)) => {
+        // Process the first message
+        println!("First Message: {:?}", message);
+    }
+    Ok(None) => {
+        // Handle the case when there are no messages
+        println!("No messages found.");
+    }
+    Err(err) => {
+        // Handle the error
+        eprintln!("Error: {}", err);
+    }
+}
+```
+
+🔍 **Retrieve a Specific Message by ID**: Get a specific message by its ID.
+
+```rust
+// ...
+
+let message_id = "YOUR_MESSAGE_ID";
+let message_result = nylas.messages().get(message_id, None).await;
+
+match message_result {
+    Ok(Some(message)) => {
+        // Process the retrieved message
+        println!("Message ID: {:?}", message.id);
+        // In expanded view mode, you can access message.headers, etc.
+    }
+    Ok(None) => {
+        // Handle the case when the message is not found
+        println!("Message not found.");
+    }
+    Err(err) => {
+        // Handle the error
+        eprintln!("Error: {}", err);
+    }
 }
 ```
 
