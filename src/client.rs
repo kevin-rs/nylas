@@ -268,9 +268,9 @@ impl Nylas {
     ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///     let access_token = "YOUR_ACCESS_TOKEN";
     ///
-    ///     // let nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///     let nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
     ///
-    ///     // println!("Account Details: {:?}", nylas.account);
+    ///     println!("Account Details: {:?}", nylas.account);
     /// }
     /// ```
     pub async fn account(&mut self) -> Result<(), String> {
@@ -319,9 +319,9 @@ impl Nylas {
     ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///     let access_token = "YOUR_ACCESS_TOKEN";
     ///
-    ///     // let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
     ///
-    ///     // let messages = nylas.messages();
+    ///     let messages = nylas.messages();
     /// }
     /// ```
     pub fn messages(&mut self) -> Messages {

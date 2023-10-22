@@ -1,13 +1,12 @@
-//! Nylas Rust SDK
+//! # Nylas Rust SDK
 //!
-//! The Nylas Rust SDK is a library that simplifies interaction with the Nylas Email and Calendar API.
-//! It allows you to integrate Nylas services into your Rust applications with ease.
+//! The Nylas Rust SDK is a powerful library that simplifies interaction with the Nylas Email and Calendar API. With this SDK, you can seamlessly integrate Nylas services into your Rust applications, enabling you to work with email and calendar data efficiently.
 //!
 //! # Quick Start
 //!
-//! To quickly get started with the Nylas Rust SDK, follow these steps:
+//! Get up and running with the Nylas Rust SDK quickly by following these simple steps:
 //!
-//! 1. Include the Nylas Rust SDK in your project's `Cargo.toml` file:
+//! 1. Add the Nylas Rust SDK to your project's `Cargo.toml` file:
 //!
 //! ```toml
 //! [dependencies]
@@ -21,7 +20,7 @@
 //! use nylas::client::Nylas;
 //! ```
 //!
-//! 3. Initialize the Nylas client by providing your Nylas client ID and client secret:
+//! 3. Initialize the Nylas client by providing your Nylas client ID, client secret, and access_token:
 //!
 //! ```rust
 //! use nylas::client::Nylas;
@@ -30,27 +29,72 @@
 //! async fn main() {
 //!     let client_id = "YOUR_CLIENT_ID";
 //!     let client_secret = "YOUR_CLIENT_SECRET";
-//!     let mut nylas = Nylas::new(client_id, client_secret, None).await.unwrap();
+//!     let access_token = "YOUR_ACCESS_TOKEN";
+//!     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
 //!     // ...
 //! }
 //! ```
 //!
-//! 4. Start using Nylas services, such as authentication, accessing account information, and fetching messages.
+//! 4. Begin using Nylas services, including authentication, accessing account information, and managing messages.
 //!
-//! # Features
+//! # Key Features
 //!
-//! - Simplified Authentication: Easily generate authentication URLs, exchange authorization codes for access tokens, and more.
-//! - Retrieve Account Information: Fetch details about the Nylas account associated with the access token.
-//! - Message Management: Interact with email messages, including fetching all messages, sending emails, and more.
+//! The Nylas Rust SDK offers a range of features to simplify your integration with the Nylas Email and Calendar API:
+//!
+//! - **Simplified Authentication**: Quickly generate authentication URLs, easily exchange authorization codes for access tokens, and manage various authentication flows with simplicity.
+//! - **Account Information Retrieval**: Retrieve comprehensive details about the Nylas account associated with your access token, including account metadata, plan details, and account status.
+//! - **Message Management**: Seamlessly interact with email messages, allowing you to retrieve messages, send emails, filter messages based on criteria, and perform a wide range of message-related actions.
+//!
+//! # Usage
+//!
+//! ## Authentication
+//!
+//! ```rust
+//! // Generate an authentication URL
+//! let auth_url = nylas.authentication_url(redirect_uri, login_hint, state, scopes);
+//!
+//! // Exchange authorization code for access token
+//! let access_token = "YOUR_ACCESS_TOKEN";
+//! nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+//! ```
+//!
+//! ## Account Information
+//!
+//! ```rust
+//! // Access account details
+//! println!("{:?}", nylas.account);
+//! ```
+//!
+//! ## Message Management
+//!
+//! ```rust
+//! // Retrieve all messages
+//! let messages = nylas.messages().all().await;
+//!
+//! // Search for messages
+//! let result = nylas.messages().search("example@example.com", Some(1), Some(0)).await;
+//!
+//! // Filter and retrieve messages
+//! let filter = Some(hashmap!{
+//!     "to" => "example@example.com"
+//! });
+//! let messages = nylas.messages().where_(filter, Some(View::Expanded)).await;
+//!
+//! // Retrieve the first message
+//! let message_result = nylas.messages().first().await;
+//!
+//! // Get a specific message
+//! let message_id = "YOUR_MESSAGE_ID";
+//! let message_result = nylas.messages().get(message_id, Some(View::Expanded)).await;
+//! ```
 //!
 //! # GitHub Repository
 //!
-//! The source code for this library can be found on [GitHub](https://github.com/wiseaidev/nylas).
+//! You can access the source code for this library on [GitHub](https://github.com/wiseaidev/nylas).
 //!
 //! # Contributing
 //!
-//! We welcome contributions and bug reports. Please feel free to contribute to the project on [GitHub](https://github.com/wiseaidev/nylas).
-//! Your contributions help make this library better for everyone.
+//! We actively welcome contributions and bug reports from the community. If you'd like to contribute, report a bug, or suggest an enhancement, please feel free to engage with the project on [GitHub](https://github.com/wiseaidev/nylas). Your contributions are invaluable in making this library better for everyone.
 
 pub mod accounts;
 pub mod client;

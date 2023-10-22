@@ -4,6 +4,24 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Represents an email view.
+#[derive(Debug)]
+pub enum View {
+    Ids,
+    Count,
+    Expanded,
+}
+
+impl ToString for View {
+    fn to_string(&self) -> String {
+        match self {
+            View::Ids => "ids".to_string(),
+            View::Count => "count".to_string(),
+            View::Expanded => "expanded".to_string(),
+        }
+    }
+}
+
 /// Represents an email address with an optional name.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EmailAddress {
@@ -88,6 +106,8 @@ pub struct Message {
     pub events: Vec<Event>,
     pub folder: Option<Folder>,
     pub labels: Vec<Label>,
+    // handle string or null while deserializing the response.
+    pub headers: Option<Value>,
 }
 
 impl Message {
@@ -332,22 +352,22 @@ impl<'a> Messages<'a> {
     ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///     let access_token = "YOUR_ACCESS_TOKEN";
     ///
-    ///     // let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
     ///
-    ///     // Call the `search` method to search for messages with a limit and offset
-    ///     // let result = nylas.messages().search("yo.code.inbox@gmail.com", Some(1), Some(0)).await;
-    ///     // match result {
-    ///     //     Ok(messages) => {
-    ///     //         for message in messages {
-    ///     //             // Process each searched message
-    ///     //             println!("{:?}", message);
-    ///     //         }
-    ///     //     }
-    ///     //     Err(err) => {
-    ///     //         // Handle the error
-    ///     //         eprintln!("Error: {}", err);
-    ///     //     }
-    ///     // }
+    ///     Call the `search` method to search for messages with a limit and offset
+    ///     let result = nylas.messages().search("yo.code.inbox@gmail.com", Some(1), Some(0)).await;
+    ///     match result {
+    ///         Ok(messages) => {
+    ///             for message in messages {
+    ///                 // Process each searched message
+    ///                 println!("{:?}", message);
+    ///             }
+    ///         }
+    ///         Err(err) => {
+    ///             // Handle the error
+    ///             eprintln!("Error: {}", err);
+    ///         }
+    ///     }
     /// }
     /// ```
     pub async fn search(
@@ -399,12 +419,13 @@ impl<'a> Messages<'a> {
         }
     }
 
-    /// Filters messages based on specified criteria.
+    /// Filters messages based on specified criteria with an optional view parameter.
     ///
     /// # Arguments
     ///
     /// - `self`: A mutable reference to the `Messages` struct.
-    /// - `filter`: A hashmap containing filtering criteria as key-value pairs.
+    /// - `filter`: An optional hashmap containing filtering criteria as key-value pairs.
+    /// - `view`: An optional view parameter (enum) for the message. Allowed values: ids, count, expanded.
     ///
     /// # Returns
     ///
@@ -418,29 +439,32 @@ impl<'a> Messages<'a> {
     ///
     /// ```rust
     /// use nylas::client::Nylas;
+    /// use nylas::messages::View;
     /// #[tokio::main]
     /// async fn main() {
     ///     let client_id = "YOUR_CLIENT_ID";
     ///     let client_secret = "YOUR_CLIENT_SECRET";
     ///     let access_token = "YOUR_ACCESS_TOKEN";
     ///
-    ///     // let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
     ///
-    ///     // Define filter parameters as a HashMap
-    ///     // let mut filter = HashMap::new();
-    ///     // filter.insert("to", "oss@wiseai.dev");
-    ///     // let result = nylas.messages().where_(filter).await;
-    ///     // match result {
-    ///     //     Ok(messages) => {
-    ///     //         // Process the filtered messages
-    ///     //         for message in messages {
-    ///     //             println!("Filtered Message: {:?}", message);
-    ///     //         }
-    ///     //     }
-    ///     //     Err(err) => {
-    ///     //         eprintln!("Error: {}", err);
-    ///     //     }
-    ///     // }
+    ///     Define filter parameters as a HashMap
+    ///     let mut filter = HashMap::new();
+    ///     filter.insert("to", "oss@wiseai.dev");
+    ///     
+    ///     Call the `where_` method with filter and view parameters
+    ///     let result = nylas.messages().where_(Some(filter), Some(View::Expanded)).await;
+    ///     match result {
+    ///         Ok(messages) => {
+    ///             // Process the filtered messages
+    ///             for message in messages {
+    ///                 println!("Filtered Message: {:?}", message);
+    ///             }
+    ///         }
+    ///         Err(err) => {
+    ///             eprintln!("Error: {}", err);
+    ///         }
+    ///     }
     /// }
     /// ```
     ///
@@ -460,16 +484,199 @@ impl<'a> Messages<'a> {
     /// - `"body"`: Filter messages with a body containing a specific keyword.
     /// - `"thread_id"`: Filter messages belonging to a specific thread (by ID).
     /// - `"labels"`: Filter messages with specific labels (comma-separated).
-    pub async fn where_(&mut self, filter: HashMap<&str, &str>) -> Result<Vec<Message>, String> {
+    pub async fn where_(
+        &mut self,
+        filter: Option<HashMap<&str, &str>>,
+        view: Option<View>,
+    ) -> Result<Vec<Message>, String> {
         // Call the `all` method to retrieve all messages
-        let messages = self.all().await?;
+        let mut url = "https://api.nylas.com/messages".to_string();
 
-        // Filter messages based on the provided parameters
-        let filtered_messages: Vec<Message> = messages
-            .into_iter()
-            .filter(|message| message.matches_filter(&filter))
-            .collect();
+        if let Some(view) = view {
+            url.push_str(&format!("?view={}", view.to_string()));
+        }
 
-        Ok(filtered_messages)
+        // Create an HTTP client with the bearer token in the headers
+        let client = reqwest::Client::new();
+        let request = client
+            .get(&url)
+            .header("Accept", "application/json")
+            .header(
+                "Authorization",
+                format!(
+                    "Bearer {}",
+                    self.nylas
+                        .access_token
+                        .as_ref()
+                        .ok_or("Access token not provided")?,
+                ),
+            )
+            .send();
+
+        // Handle the HTTP response
+        match request.await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    // Parse the JSON response into a vector of Message
+                    let messages: Vec<Message> = response.json().await.unwrap();
+                    // Filter messages based on the provided parameters
+                    let filtered_messages: Vec<Message> = match filter {
+                        Some(filter) => messages
+                            .into_iter()
+                            .filter(|message| message.matches_filter(&filter))
+                            .collect(),
+                        None => messages,
+                    };
+                    Ok(filtered_messages)
+                } else {
+                    Err(format!("Request failed with status: {}", response.status()))
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    /// Retrieve the most recent message from the Nylas API.
+    ///
+    /// # Arguments
+    ///
+    /// - `self`: A mutable reference to the `Messages` struct.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing an `Option<Message>` if successful (Some(message)), or an error message.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use nylas::client::Nylas;
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
+    ///     let access_token = "YOUR_ACCESS_TOKEN";
+    ///
+    ///     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///
+    ///     let message_result = nylas.messages().first().await;
+    ///     match message_result {
+    ///         Ok(Some(message)) => {
+    ///             // Process the first message
+    ///             println!("{:?}", message);
+    ///         }
+    ///         Ok(None) => {
+    ///             // Handle the case when there are no messages
+    ///             println!("No messages found.");
+    ///         }
+    ///         Err(err) => {
+    ///             // Handle the error
+    ///             eprintln!("Error: {}", err);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// # Errors
+    ///
+    /// This method can return an error if the access token is not provided, or if the request to the Nylas API fails.
+    pub async fn first(&mut self) -> Result<Option<Message>, String> {
+        // Retrieve all messages
+        let all_messages = self.all().await?;
+
+        // Sort the messages by the "date" field in descending order (most recent first)
+        let mut sorted_messages = all_messages.clone();
+        sorted_messages.sort_by(|a, b| b.date.cmp(&a.date));
+
+        // If there are messages, return the first one; otherwise, return None
+        if !sorted_messages.is_empty() {
+            Ok(Some(sorted_messages[0].clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Retrieve a specific message by its ID with an optional view parameter.
+    ///
+    /// # Arguments
+    ///
+    /// - `self`: A mutable reference to the `Messages` struct.
+    /// - `id`: The ID of the message you want to retrieve.
+    /// - `view`: An optional view parameter (enum) for the message. Allowed values: ids, count, expanded.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing an `Option<Message>` if successful (Some(message)), or an error message.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use nylas::client::Nylas;
+    /// use nylas::messages::View;
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client_id = "YOUR_CLIENT_ID";
+    ///     let client_secret = "YOUR_CLIENT_SECRET";
+    ///     let access_token = "YOUR_ACCESS_TOKEN";
+    ///
+    ///     let mut nylas = Nylas::new(client_id, client_secret, Some(access_token)).await.unwrap();
+    ///
+    ///     Retrieve a specific message by ID with a view parameter
+    ///     let message_id = "your_message_id_here";
+    ///     let message_result = nylas.messages().get(message_id, Some(View::Expanded)).await;
+    ///     match message_result {
+    ///         Ok(Some(message)) => {
+    ///             // Process the retrieved message
+    ///             println!("{:?}", message);
+    ///         }
+    ///         Ok(None) => {
+    ///             // Handle the case when the message is not found
+    ///             println!("Message not found.");
+    ///         }
+    ///         Err(err) => {
+    ///             // Handle the error
+    ///             eprintln!("Error: {}", err);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub async fn get(&mut self, id: &str, view: Option<View>) -> Result<Option<Message>, String> {
+        // Construct the API URL for the specific message with view parameter
+        let mut url = format!("https://api.nylas.com/messages/{}", id);
+
+        if let Some(view) = view {
+            url.push_str(&format!("?view={}", view.to_string()));
+        }
+
+        // Create an HTTP client with the bearer token in the headers
+        let client = reqwest::Client::new();
+        let request = client
+            .get(&url)
+            .header("Accept", "application/json")
+            .header(
+                "Authorization",
+                format!(
+                    "Bearer {}",
+                    self.nylas
+                        .access_token
+                        .as_ref()
+                        .ok_or("Access token not provided")?,
+                ),
+            )
+            .send();
+
+        // Handle the HTTP response
+        match request.await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    // Parse the JSON response into a message or an empty response
+                    let message: Option<Message> = response.json().await.unwrap_or_default();
+                    Ok(message)
+                } else if response.status() == reqwest::StatusCode::NOT_FOUND {
+                    Ok(None)
+                } else {
+                    Err(format!("Request failed with status: {}", response.status()))
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
