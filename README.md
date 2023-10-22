@@ -37,7 +37,7 @@ You can find the latest version on [Crates.io](https://crates.io/crates/nylas).
 Here's a simple example of how to retrieve all messages using the Nylas Rust Client:
 
 ```rust
-use nylas::auth::Nylas;
+use nylas::client::Nylas;
 
 #[tokio::main]
 async fn main() {
