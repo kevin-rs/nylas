@@ -1,5 +1,6 @@
 use crate::accounts::Account;
 use crate::messages::Messages;
+use base64::{engine::general_purpose, Engine as _};
 use std::collections::HashMap;
 use url::Url;
 
@@ -220,10 +221,14 @@ impl Nylas {
         // Build the URL
         let base_url = "https://api.nylas.com/oauth/token";
 
+        // Base64 encode the client secret
+        let encoded_client_secret = general_purpose::STANDARD.encode(self.client_secret.clone());
+
         // Make the POST request
         let client = reqwest::Client::new();
         let response = client
             .post(base_url)
+            .header("Authorization", format!("Basic {}", encoded_client_secret))
             .header("Accept", "application/json")
             .form(&params)
             .send()
@@ -241,7 +246,12 @@ impl Nylas {
                 return Err("Access token not found in the response.".to_string());
             }
         } else {
-            return Err(format!("HTTP Error: {}", response.status()));
+            // change this to return the response error message
+            let error_message = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown Error".to_string());
+            return Err(format!("HTTP Error: - {}", error_message));
         }
     }
 
