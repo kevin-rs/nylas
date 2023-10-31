@@ -1,6 +1,6 @@
 [package]
 name = "nylas"
-version = "0.0.7"
+version = "0.0.8"
 edition = "2021"
 description = "The non-official Rust SDK for the Nylas API."
 license = "MIT"
@@ -19,7 +19,6 @@ base64 = "0.21.5"
 reqwest = { version = "0.11.22", features = ["json"] }
 serde = { version = "1.0.189", features = ["derive"] }
 serde_json = "1.0.107"
-tokio = { version = "1.33.0", features = ["full"] }
 url = "2.4.1"
 
 [dev-dependencies]
