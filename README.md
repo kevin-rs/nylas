@@ -189,7 +189,7 @@ match message_result {
 }
 ```
 
-TODO: Explore the [examples](examples) folder for more usage scenarios.
+Explore the [examples](examples) folder for more usage scenarios.
 
 ## Documentation
 

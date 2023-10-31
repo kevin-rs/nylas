@@ -57,7 +57,7 @@ pub struct Event {
     pub status: String,
     pub title: String,
     pub visibility: Option<Value>,
-    pub when: HashMap<String, i64>,
+    pub when: HashMap<String, Value>,
 }
 
 /// Represents a participant in an event.

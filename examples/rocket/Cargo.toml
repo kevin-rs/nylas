@@ -1,0 +1,19 @@
+[package]
+name = "server"
+version = "0.1.0"
+description = "Rocket and Nylas Rust SDK demo."
+license = "MIT"
+repository = "https://github.com/wiseaidev/nylas"
+homepage = "https://github.com/wiseaidev/nylas"
+authors = ["Mahmoud Harmouch <oss@wiseai.dev>"]
+documentation = "https://docs.rs/nylas"
+readme = "README.md"
+keywords = ["nylas", "nylas-sdk", "API", "Rust", "Rocket"]
+edition = "2021"
+
+[dependencies]
+rocket = { version = "=0.5.0-rc.3", features = ["json"] }
+nylas = { path = "../.." }
+rocket_cors = "0.6.0-alpha2"
+dotenv = "0.15.0"
+dotenv_codegen = "0.15.0"
